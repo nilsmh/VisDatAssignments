@@ -39,7 +39,34 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 // == // Modify and complete the function below for the first task
-// unsafe fn FUNCTION_NAME(ARGUMENT_NAME: &Vec<f32>, ARGUMENT_NAME: &Vec<u32>) -> u32 { } 
+unsafe fn setup_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
+    //Declare the VAO and VBO
+    let mut VAO: u32 = 0;
+    let mut VBO: u32 = 0;
+
+    // Generate vertex arrays and buffers
+    gl::GenVertexArrays(1, &mut VAO);
+    gl::GenBuffers(1, &mut VBO);
+
+    // Binds the vertex array
+    gl::BindVertexArray(VAO);
+
+
+    gl::BindBuffer(gl::ARRAY_BUFFER, VBO);
+    gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(&vertices), pointer_to_array(&vertices), gl::STATIC_DRAW);
+
+    let mut  VBO: u32 = 0;
+    gl::GenBuffers(1, &mut VBO);
+
+    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, VBO);
+    gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, byte_size_of_array(&indices), pointer_to_array(&indices), gl::STATIC_DRAW);
+
+    gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 3 * size_of::<f32>(), ptr::null());
+
+    gl::EnableVertexAttribArray(0);
+
+    return VAO;
+} 
 
 fn main() {
     // Set up the necessary objects to deal with windows and event handling
@@ -93,20 +120,74 @@ fn main() {
         }
 
         // == // Set up your VAO here
-        unsafe {
 
-        }
+        //Vector containing vertices for the triangles
+        let vertex_vector: Vec<f32> = vec![
+            // Task 1, c
+            // -1.0, -1.0, 0.0, //first triangle
+            // 0.0, -1.0, 0.0, 
+            // -1.0, 0.0, 0.0,
+
+            // -1.0, 1.0, 0.0, //second triangle
+            // -1.0, 0.0, 0.0,
+            // 0.0, 1.0, 0.0, 
+
+            // 1.0, 1.0, 0.0, //third triangle
+            // 0.0, 1.0, 0.0, 
+            // 1.0, 0.0, 0.0,
+
+            // 1.0, 0.0, 0.0, // forth triangle
+            // 0.0, -1.0, 0.0,
+            // 1.0, -1.0, 0.0, 
+            
+            // 0.0, 0.4, 0.0, // fifth triangle
+            // -0.4, 0.0, 0.0,
+            // 0.4, 0.0, 0.0,
+
+            // -0.4, 0.0, 0.0,  // sixth triangle
+            // 0.0, -0.4, 0.0,
+            // 0.4, 0.0, 0.0,
+           
+            // Task 2, a
+            // 0.6, -0.8, -1.0,
+            // 0.0, 0.4, 0.0,
+            // -0.8, -0.2, 1.0
+
+            //Task 2, b
+            -1.0, -1.0, 0.0, //first triangle
+            0.0, -1.0, 0.0, 
+            -1.0, 0.0, 0.0,
+
+            1.0, 1.0, 0.0, //second triangle
+            0.0, 1.0, 0.0, 
+            1.0, 0.0, 0.0,
+ 
+        ];
+        // Task 1
+        // let indices_array: Vec<u32> = vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53];
+
+        //Task 2, a)
+        // let indices_array: Vec<u32> = vec![0,1,2,3,4,5];
+
+        // Task 2, b)
+        let indices_array: Vec<u32> = vec![0,1,2,3,4,5];
+
+        let vao;
+        unsafe {
+            vao = setup_vao(&vertex_vector, &indices_array);
+        };
 
         // Basic usage of shader helper:
         // The example code below returns a shader object, which contains the field `.program_id`.
         // The snippet is not enough to do the assignment, and will need to be modified (outside of
         // just using the correct path), but it only needs to be called once
         //
-        //     shader::ShaderBuilder::new()
-        //        .attach_file("./path/to/shader.file")
-        //        .link();
+        let shader;
         unsafe {
-
+            shader = shader::ShaderBuilder::new()
+            .attach_file("./shaders/simple.vert")   
+            .attach_file("./shaders/simple.frag")
+            .link().activate();
         }
 
         // Used to demonstrate keyboard handling -- feel free to remove
@@ -146,15 +227,12 @@ fn main() {
             }
 
             unsafe {
-                gl::ClearColor(0.76862745, 0.71372549, 0.94901961, 1.0); // moon raker, full opacity
+                gl::ClearColor(0.8, 0.3, 1.0, 0.7); // moon raker, full opacity
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
                 // Issue the necessary commands to draw your scene here
-
-
-
-
-
+                gl::BindVertexArray(vao);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
             }
 
             context.swap_buffers().unwrap();
