@@ -5,6 +5,9 @@ use std::sync::{Mutex, Arc, RwLock};
 
 mod shader;
 mod util;
+mod mesh;
+mod scene_graph;
+use scene_graph::SceneNode;
 
 use glutin::event::{Event, WindowEvent, DeviceEvent, KeyboardInput, ElementState::{Pressed, Released}, VirtualKeyCode::{self, *}};
 use glutin::event_loop::ControlFlow;
@@ -39,31 +42,54 @@ fn offset<T>(n: u32) -> *const c_void {
 
 
 // == // Modify and complete the function below for the first task
-unsafe fn setup_vao(vertices: &Vec<f32>, indices: &Vec<u32>) -> u32 {
+unsafe fn setup_vao(vertices: &Vec<f32>, indices: &Vec<u32>, color: &Vec<f32>, normals: &Vec<f32>) -> u32 {
     //Declare the VAO and VBO
     let mut VAO: u32 = 0;
-    let mut VBO: u32 = 0;
+    let mut vertex_VBO: u32 = 0;
+    let mut index_VBO: u32 = 0;
+    let mut color_VBO: u32 = 0;
+    let mut normals_VBO: u32 = 0;
+
 
     // Generate vertex arrays and buffers
     gl::GenVertexArrays(1, &mut VAO);
-    gl::GenBuffers(1, &mut VBO);
+    gl::GenBuffers(1, &mut vertex_VBO);
 
     // Binds the vertex array
     gl::BindVertexArray(VAO);
 
 
-    gl::BindBuffer(gl::ARRAY_BUFFER, VBO);
+    gl::BindBuffer(gl::ARRAY_BUFFER, vertex_VBO);
     gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(&vertices), pointer_to_array(&vertices), gl::STATIC_DRAW);
+    
 
-    let mut  VBO: u32 = 0;
-    gl::GenBuffers(1, &mut VBO);
+    // Generate buffer for indices
+    gl::GenBuffers(1, &mut index_VBO);
 
-    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, VBO);
+    gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, index_VBO);
     gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, byte_size_of_array(&indices), pointer_to_array(&indices), gl::STATIC_DRAW);
 
     gl::VertexAttribPointer(0, 3, gl::FLOAT, gl::FALSE, 3 * size_of::<f32>(), ptr::null());
 
     gl::EnableVertexAttribArray(0);
+
+
+    // Generate buffer for color
+    gl::GenBuffers(1, &mut color_VBO);
+    gl::BindBuffer(gl::ARRAY_BUFFER, color_VBO);
+    gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(&color), pointer_to_array(&color), gl::STATIC_DRAW);
+
+    gl::VertexAttribPointer(1, 4, gl::FLOAT, gl::FALSE, 4 * size_of::<f32>(), ptr::null());
+
+    gl::EnableVertexAttribArray(1);
+
+    //Generate buffer for normals
+    gl::GenBuffers(1, &mut normals_VBO);
+    gl::BindBuffer(gl::ARRAY_BUFFER, normals_VBO);
+    gl::BufferData(gl::ARRAY_BUFFER, byte_size_of_array(&normals), pointer_to_array(&normals), gl::STATIC_DRAW);
+
+    gl::VertexAttribPointer(5, 3, gl::FLOAT, gl::FALSE, 3 * size_of::<f32>(), ptr::null());
+    gl::EnableVertexAttribArray(5);
 
     return VAO;
 } 
@@ -123,71 +149,130 @@ fn main() {
 
         //Vector containing vertices for the triangles
         let vertex_vector: Vec<f32> = vec![
-            // Task 1, c
-            // -1.0, -1.0, 0.0, //first triangle
-            // 0.0, -1.0, 0.0, 
-            // -1.0, 0.0, 0.0,
-
-            // -1.0, 1.0, 0.0, //second triangle
-            // -1.0, 0.0, 0.0,
-            // 0.0, 1.0, 0.0, 
-
-            // 1.0, 1.0, 0.0, //third triangle
-            // 0.0, 1.0, 0.0, 
-            // 1.0, 0.0, 0.0,
-
-            // 1.0, 0.0, 0.0, // forth triangle
+            //Task 1
+            // -1.0, -1.0, 0.0,
             // 0.0, -1.0, 0.0,
-            // 1.0, -1.0, 0.0, 
-            
-            // 0.0, 0.4, 0.0, // fifth triangle
-            // -0.4, 0.0, 0.0,
-            // 0.4, 0.0, 0.0,
+            // -0.5, 0.0, 0.0,
 
-            // -0.4, 0.0, 0.0,  // sixth triangle
-            // 0.0, -0.4, 0.0,
-            // 0.4, 0.0, 0.0,
-           
-            // Task 2, a
-            // 0.6, -0.8, -1.0,
-            // 0.0, 0.4, 0.0,
-            // -0.8, -0.2, 1.0
+            // 0.0, -1.0, 0.0,
+            // 1.0, -1.0, 0.0,
+            // 0.5, 0.0, 0.0,
 
-            //Task 2, b
-            -1.0, -1.0, 0.0, //first triangle
-            0.0, -1.0, 0.0, 
-            -1.0, 0.0, 0.0,
+            // 0.0, 0.0, 0.0,
+            // 0.5, 1.0, 0.0,
+            // -0.5, 1.0, 0.0
 
-            1.0, 1.0, 0.0, //second triangle
-            0.0, 1.0, 0.0, 
-            1.0, 0.0, 0.0,
- 
+            //Task 2, 4
+            -0.3, -0.3, 0.5, // first triangle
+            0.3, -0.3, 0.5,
+            0.0, 0.7, 0.5,
+
+            -0.6, -0.4, 0.0, // second triangle
+            0.0, -0.4, 0.0,
+            -0.3, 0.4, 0.0,
+
+            -0.5, -0.5, -1.0, // third triangle
+            0.1, -0.5, -1.0,
+            -0.2, 0.1, -1.0,
+
         ];
-        // Task 1
-        // let indices_array: Vec<u32> = vec![0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53];
+      
+        let indices_array: Vec<u32> = vec![0,1,2,3,4,5,6,7,8];
+        
+        //Task 2b_ii
+        //let indices_array: Vec<u32> = vec![6,7,8,3,4,5,0,1,2];
 
-        //Task 2, a)
-        // let indices_array: Vec<u32> = vec![0,1,2,3,4,5];
+        let color_array: Vec<f32> = vec![
+            //Task 1
+            // 1.0, 0.0, 0.0, 1.0, // first triangle
+            // 0.0, 1.0, 0.0, 1.0,
+            // 0.0, 0.0, 1.0, 1.0,
 
-        // Task 2, b)
-        let indices_array: Vec<u32> = vec![0,1,2,3,4,5];
+            // 0.2, 0.3, 0.3, 1.0, // second triangle
+            // 1.0, 0.0, 0.6, 1.0,
+            // 0.0, 0.8, 0.3, 1.0,
 
-        let vao;
+            // 0.5, 0.6, 0.1, 1.0, // third triangle
+            // 0.3, 0.2, 0.8, 1.0,
+            // 0.8, 0.1, 0.5, 1.0,
+
+            //Task 2, 4
+            1.0, 0.0, 0.0, 0.4,
+            1.0, 0.0, 0.0, 0.4,
+            1.0, 0.0, 0.0, 0.4,
+
+            0.0, 1.0, 0.0, 0.4,
+            0.0, 1.0, 0.0, 0.4,
+            0.0, 1.0, 0.0, 0.4,
+
+            0.0, 0.0, 1.0, 0.4,
+            0.0, 0.0, 1.0, 0.4,
+            0.0, 0.0, 1.0, 0.4,
+
+        ];
+
+       
+        //Load models
+        let terrain = mesh::Terrain::load("./resources/lunarsurface.obj");
+        let helicopter = mesh::Helicopter::load("./resources/helicopter.obj");
+
+        //Build vaos
+        let vao_terrain;
+        let vao_body;
+        let vao_door;
+        let vao_main_rotor;
+        let vao_tail_rotor;
         unsafe {
-            vao = setup_vao(&vertex_vector, &indices_array);
+            //vao = setup_vao(&vertex_vector, &indices_array, &color_array);
+            vao_terrain = setup_vao(&terrain.vertices, &terrain.indices, &terrain.colors, &terrain.normals);
+            vao_body = setup_vao(&helicopter.body.vertices,&helicopter.body.indices, &helicopter.body.colors, &helicopter.body.normals);
+            vao_door = setup_vao(&helicopter.door.vertices,&helicopter.door.indices, &helicopter.door.colors, &helicopter.door.normals);
+            vao_main_rotor = setup_vao(&helicopter.main_rotor.vertices,&helicopter.main_rotor.indices, &helicopter.main_rotor.colors, &helicopter.main_rotor.normals);
+            vao_tail_rotor = setup_vao(&helicopter.tail_rotor.vertices,&helicopter.tail_rotor.indices, &helicopter.tail_rotor.colors, &helicopter.tail_rotor.normals);
         };
+
+        unsafe {
+            let mut root_node = SceneNode::new();
+            let mut terrain_node = SceneNode::from_vao(vao_terrain, terrain.index_count);
+            let mut body_node = SceneNode::from_vao(vao_body, helicopter.body.index_count);
+            let mut door_node = SceneNode::from_vao(vao_door, helicopter.door.index_count);
+            let mut main_rotor_node = SceneNode::from_vao(vao_main_rotor, helicopter.main_rotor.index_count);
+            let mut tail_rotor_node = SceneNode::from_vao(vao_tail_rotor, helicopter.tail_rotor.index_count);
+
+            root_node.add_child(&terrain_node);
+            terrain_node.add_child(&main_rotor_node);
+            main_rotor_node.add_child(&tail_rotor_node);
+            main_rotor_node.add_child(&body_node);
+            main_rotor_node.add_child(&door_node);
+
+            main_rotor_node.print();
+
+            root_node.position = Mat3[1.0, 1.0, 1.0];
+            root_node.position = Mat3[1.0, 1.0, 1.0]; 
+
+        }
+
+        unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4) {
+            if node.get_n_children() != 0 { 
+                for &child in &node.children {
+                    draw_scene(&*child, view_projection_matrix);
+                }
+            }
+        }
+
 
         // Basic usage of shader helper:
         // The example code below returns a shader object, which contains the field `.program_id`.
         // The snippet is not enough to do the assignment, and will need to be modified (outside of
         // just using the correct path), but it only needs to be called once
         //
-        let shader;
+        let shader: shader::Shader;
         unsafe {
             shader = shader::ShaderBuilder::new()
             .attach_file("./shaders/simple.vert")   
             .attach_file("./shaders/simple.frag")
-            .link().activate();
+            .link();
+            shader.activate();
         }
 
         // Used to demonstrate keyboard handling -- feel free to remove
@@ -195,6 +280,12 @@ fn main() {
 
         let first_frame_time = std::time::Instant::now();
         let mut last_frame_time = first_frame_time;
+
+        // Variables to store the motion
+        let mut movement_coords = glm::vec3(0.0, 0.0, 0.0);
+        let mut rotation_coords =  glm::vec3(0.0, 0.0, 0.0);
+        let speed_constant: f32 = 100.0;
+
         // The main rendering loop
         loop {
             let now = std::time::Instant::now();
@@ -206,14 +297,36 @@ fn main() {
             if let Ok(keys) = pressed_keys.lock() {
                 for key in keys.iter() {
                     match key {
-                        VirtualKeyCode::A => {
-                            _arbitrary_number += delta_time;
-                        },
                         VirtualKeyCode::D => {
-                            _arbitrary_number -= delta_time;
+                            movement_coords[0] += delta_time * speed_constant;
                         },
-
-
+                        VirtualKeyCode::A => {
+                            movement_coords[0] -= delta_time * speed_constant;
+                        },
+                        VirtualKeyCode::W => {
+                            movement_coords[1] += delta_time * speed_constant;
+                        },
+                        VirtualKeyCode::S => {
+                            movement_coords[1] -= delta_time * speed_constant;
+                        },
+                        VirtualKeyCode::Q => {
+                            movement_coords[2] += delta_time * speed_constant;
+                        },
+                        VirtualKeyCode::E => {
+                            movement_coords[2] -= delta_time * speed_constant;
+                        },
+                        VirtualKeyCode::Left => {
+                            rotation_coords[0] += delta_time
+                        },
+                        VirtualKeyCode::Right => {
+                            rotation_coords[0] -= delta_time
+                        },
+                        VirtualKeyCode::Up => {
+                            rotation_coords[1] += delta_time
+                        },
+                        VirtualKeyCode::Down => {
+                            rotation_coords[1] -= delta_time
+                        },
                         _ => { }
                     }
                 }
@@ -227,12 +340,54 @@ fn main() {
             }
 
             unsafe {
-                gl::ClearColor(0.8, 0.3, 1.0, 0.7); // moon raker, full opacity
+                //let matrix = glm::Mat4::from([
+                //     [1.0, 0.0, 0.0, elapsed.sin()],
+                //     [0.0, 1.0, 0.0, elapsed.sin()],
+                //     [1.0, 0.0, 1.0, 0],
+                //     [0.0, 0.0, 0.0, 1.0],
+                // ]);
+                //Identity matrix
+                let identity_matrix: glm::Mat4 = glm::identity();
+
+                // Projection
+                let projection: glm::Mat4 = glm::perspective(SCREEN_H as f32 / SCREEN_W as f32, 0.5, 1.0, 1000.0);
+
+                //View
+                let movement: glm::Mat4 = glm::translation(&movement_coords);
+                let rotation: glm::Mat4 = glm::rotation(-rotation_coords[1], &glm::vec3(1.0, 0.0, 0.0)) * glm::rotation(rotation_coords[0], &glm::vec3(0.0, 1.0, 0.0));
+                
+                //Model
+                let model: glm::Mat4 = glm::translation(&glm::vec3(0.0, 0.0, -4.0));
+
+                let matrix: glm::Mat4 = (projection * identity_matrix) * (model * identity_matrix) * (movement * rotation * identity_matrix); 
+
+                let transformation_loc = shader.get_uniform_location("transformation");
+                gl::UniformMatrix4fv(transformation_loc, 1, gl::FALSE, matrix.as_ptr());
+
+                gl::ClearColor(0.2, 0.3, 0.3, 1.0); // moon raker, full opacity
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
 
+                gl::Enable(gl::BLEND);
+                gl::Disable(gl::CULL_FACE); 
+                gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+
+                gl::BindVertexArray(vao_terrain);
+
+
                 // Issue the necessary commands to draw your scene here
-                gl::BindVertexArray(vao);
-                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, ptr::null());
+                // gl::BindVertexArray(vao_terrain);
+                // gl::DrawElements(gl::TRIANGLES, terrain.index_count, gl::UNSIGNED_INT, ptr::null());
+                // gl::BindVertexArray(vao_body);
+                // gl::DrawElements(gl::TRIANGLES, helicopter.body.index_count, gl::UNSIGNED_INT, ptr::null());
+                // gl::BindVertexArray(vao_door);
+                // gl::DrawElements(gl::TRIANGLES,  helicopter.door.index_count, gl::UNSIGNED_INT, ptr::null());
+                // gl::BindVertexArray(vao_main_rotor);
+                // gl::DrawElements(gl::TRIANGLES,  helicopter.main_rotor.index_count, gl::UNSIGNED_INT, ptr::null());
+                // gl::BindVertexArray(vao_tail_rotor);
+                // gl::DrawElements(gl::TRIANGLES,  helicopter.tail_rotor.index_count, gl::UNSIGNED_INT, ptr::null());
+
+                    
+
             }
 
             context.swap_buffers().unwrap();
@@ -291,9 +446,9 @@ fn main() {
                     Escape => {
                         *control_flow = ControlFlow::Exit;
                     },
-                    Q => {
-                        *control_flow = ControlFlow::Exit;
-                    }
+                    // Q => {
+                    //     *control_flow = ControlFlow::Exit;
+                    // }
                     _ => { }
                 }
             },
