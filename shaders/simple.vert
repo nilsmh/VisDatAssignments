@@ -1,10 +1,10 @@
 #version 430 core
 
 layout (location = 0) in vec3 position;
-//layout (location = 1) in vec4 color;
+layout (location = 1) in vec4 color;
 layout (location = 2) uniform mat4 transformation;
 layout (location = 5) in vec3 normals;
-//out vec4 newColor;
+out vec4 newColor;
 out vec3 newNormals;
 //Task 4
 //uniform mat4 transformation;
@@ -14,7 +14,7 @@ out vec3 newNormals;
 void main()
 {
     gl_Position = transformation * vec4(position, 1.0f);
-    //newColor = color;
+    newColor = color;
     newNormals = normals;
 
     //Task 2d

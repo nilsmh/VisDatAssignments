@@ -231,35 +231,21 @@ fn main() {
             vao_tail_rotor = setup_vao(&helicopter.tail_rotor.vertices,&helicopter.tail_rotor.indices, &helicopter.tail_rotor.colors, &helicopter.tail_rotor.normals);
         };
 
-        unsafe {
-            let mut root_node = SceneNode::new();
-            let mut terrain_node = SceneNode::from_vao(vao_terrain, terrain.index_count);
-            let mut body_node = SceneNode::from_vao(vao_body, helicopter.body.index_count);
-            let mut door_node = SceneNode::from_vao(vao_door, helicopter.door.index_count);
-            let mut main_rotor_node = SceneNode::from_vao(vao_main_rotor, helicopter.main_rotor.index_count);
-            let mut tail_rotor_node = SceneNode::from_vao(vao_tail_rotor, helicopter.tail_rotor.index_count);
+        
+        let mut root_node = SceneNode::new();
+        let mut terrain_node = SceneNode::from_vao(vao_terrain, terrain.index_count);
+        let mut body_node = SceneNode::from_vao(vao_body, helicopter.body.index_count);
+        let mut door_node = SceneNode::from_vao(vao_door, helicopter.door.index_count);
+        let mut main_rotor_node = SceneNode::from_vao(vao_main_rotor, helicopter.main_rotor.index_count);
+        let mut tail_rotor_node = SceneNode::from_vao(vao_tail_rotor, helicopter.tail_rotor.index_count);
 
-            root_node.add_child(&terrain_node);
-            terrain_node.add_child(&main_rotor_node);
-            main_rotor_node.add_child(&tail_rotor_node);
-            main_rotor_node.add_child(&body_node);
-            main_rotor_node.add_child(&door_node);
-
-            main_rotor_node.print();
-
-            root_node.position = Mat3[1.0, 1.0, 1.0];
-            root_node.position = Mat3[1.0, 1.0, 1.0]; 
-
-        }
-
-        unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4) {
-            if node.get_n_children() != 0 { 
-                for &child in &node.children {
-                    draw_scene(&*child, view_projection_matrix);
-                }
-            }
-        }
-
+        root_node.add_child(&terrain_node);
+        terrain_node.add_child(&body_node);
+        body_node.add_child(&door_node);
+        body_node.add_child(&main_rotor_node);
+        body_node.add_child(&tail_rotor_node);
+    
+        body_node.print();
 
         // Basic usage of shader helper:
         // The example code below returns a shader object, which contains the field `.program_id`.
@@ -355,7 +341,8 @@ fn main() {
                 //View
                 let movement: glm::Mat4 = glm::translation(&movement_coords);
                 let rotation: glm::Mat4 = glm::rotation(-rotation_coords[1], &glm::vec3(1.0, 0.0, 0.0)) * glm::rotation(rotation_coords[0], &glm::vec3(0.0, 1.0, 0.0));
-                
+                let combination: glm::Mat4 = movement * rotation;
+
                 //Model
                 let model: glm::Mat4 = glm::translation(&glm::vec3(0.0, 0.0, -4.0));
 
@@ -371,10 +358,30 @@ fn main() {
                 gl::Disable(gl::CULL_FACE); 
                 gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
 
-                gl::BindVertexArray(vao_terrain);
+                unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4) {
+                    if node.index_count > 0 {  
+                        gl::BindVertexArray(node.vao_id);
+                        gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, ptr::null());
+                    }
+                    for &child in &node.children {
+                        draw_scene(&*child, view_projection_matrix);
+                    }
+                }
+
+                unsafe fn update_node_transformations(node: &mut scene_graph::SceneNode, transformation_so_far: &glm::Mat4) {
+                    //Construct the correct transformation matrix
+
+                    //Update the node's transformation matrix
+
+                    for &child in &node.children {
+                        update_node_transformations(&mut *child, &node.current_transformation_matrix);
+                    }
+                }
+
+                draw_scene(&root_node, &projection);
 
 
-                // Issue the necessary commands to draw your scene here
+                // // Issue the necessary commands to draw your scene here
                 // gl::BindVertexArray(vao_terrain);
                 // gl::DrawElements(gl::TRIANGLES, terrain.index_count, gl::UNSIGNED_INT, ptr::null());
                 // gl::BindVertexArray(vao_body);
