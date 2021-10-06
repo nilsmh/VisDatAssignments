@@ -247,6 +247,15 @@ fn main() {
     
         body_node.print();
 
+        body_node.position = glm::vec3(0.0, 00.0, -40.0);
+        body_node.rotation.y = 3.00;
+        
+
+        tail_rotor_node.reference_point = glm::vec3(0.35, 2.3, 10.4);
+        main_rotor_node.reference_point = glm::vec3(0.0, 0.0, 0.0);
+
+
+
         // Basic usage of shader helper:
         // The example code below returns a shader object, which contains the field `.program_id`.
         // The snippet is not enough to do the assignment, and will need to be modified (outside of
@@ -349,7 +358,7 @@ fn main() {
                 let matrix: glm::Mat4 = (projection * identity_matrix) * (model * identity_matrix) * (movement * rotation * identity_matrix); 
 
                 let transformation_loc = shader.get_uniform_location("transformation");
-                gl::UniformMatrix4fv(transformation_loc, 1, gl::FALSE, matrix.as_ptr());
+               // gl::UniformMatrix4fv(transformation_loc, 1, gl::FALSE, matrix.as_ptr());
 
                 gl::ClearColor(0.2, 0.3, 0.3, 1.0); // moon raker, full opacity
                 gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
@@ -360,6 +369,7 @@ fn main() {
 
                 unsafe fn draw_scene(node: &scene_graph::SceneNode, view_projection_matrix: &glm::Mat4) {
                     if node.index_count > 0 {  
+                        gl::UniformMatrix4fv(2, 1, 0, (view_projection_matrix*node.current_transformation_matrix).as_ptr());
                         gl::BindVertexArray(node.vao_id);
                         gl::DrawElements(gl::TRIANGLES, node.index_count, gl::UNSIGNED_INT, ptr::null());
                     }
@@ -370,13 +380,27 @@ fn main() {
 
                 unsafe fn update_node_transformations(node: &mut scene_graph::SceneNode, transformation_so_far: &glm::Mat4) {
                     //Construct the correct transformation matrix
+                    let mut transformation = *transformation_so_far; //The first transformation_so_far will be an identity matrix
+
+                    transformation = glm::translation(&glm::vec3(-node.reference_point.x, -node.reference_point.y, -node.reference_point.z))*transformation;
+
+                    transformation = glm::rotation(node.rotation.x, &glm::vec3(1.0, 0.0, 0.0))*transformation;
+                    transformation = glm::rotation(node.rotation.y, &glm::vec3(0.0, 1.0, 0.0))*transformation;
+                    transformation = glm::rotation(node.rotation.z, &glm::vec3(0.0, 0.0, 1.0))*transformation;
+
+                    transformation = glm::translation(&glm::vec3(node.reference_point.x, node.reference_point.y, node.reference_point.z))*transformation;
+
+                    transformation = glm::translation(&glm::vec3(node.position.x, node.position.y, node.position.z))*transformation;
 
                     //Update the node's transformation matrix
+                    node.current_transformation_matrix = transformation;
 
                     for &child in &node.children {
                         update_node_transformations(&mut *child, &node.current_transformation_matrix);
                     }
                 }
+
+                update_node_transformations(&mut root_node , &identity_matrix);
 
                 draw_scene(&root_node, &projection);
 
